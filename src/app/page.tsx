@@ -26,12 +26,16 @@ export default function Home() {
   const [appState, setAppState] = useState<AppState>(AppState.PROPOSAL);
   useEffect(() => {
     if (!pusher || !roomId) return;
+    console.log("Connecting to game channel:", roomId);
     const channel = pusher.subscribe(`presence-room-${roomId}`);
-    channel.bind("app-state-changed", (data: { newState: AppState }) => {
-      console.log("App state changed via Pusher:", data.newState);
+    const handleStateChange = (data: { newState: AppState }) => {
+      console.log("📡 [Pusher] State synced to:", data.newState);
       setAppState(data.newState);
-    });
+    };
+    channel.bind("app-state-changed", handleStateChange);
     return () => {
+      console.log("Unsubscribing from channel:", roomId);
+      channel.unbind("app-state-changed", handleStateChange);
       pusher.unsubscribe(`presence-room-${roomId}`);
     };
   }, [pusher, roomId]);
