@@ -22,23 +22,19 @@ enum AppState {
   GAME_DRAW
 }
 export default function Home() {
-  const { pusher, roomId, isHost } = usePusher();
+  const { pusher, roomId, isHost, channel } = usePusher();
   const [appState, setAppState] = useState<AppState>(AppState.PROPOSAL);
   useEffect(() => {
-    if (!pusher || !roomId) return;
-    console.log("Connecting to game channel:", roomId);
-    const channel = pusher.subscribe(`presence-room-${roomId}`);
+    if (!channel) return;
     const handleStateChange = (data: { newState: AppState }) => {
-      console.log("📡 [Pusher] State synced to:", data.newState);
+      console.log("📡 [Pusher] App State Sync:", data.newState);
       setAppState(data.newState);
     };
     channel.bind("app-state-changed", handleStateChange);
     return () => {
-      console.log("Unsubscribing from channel:", roomId);
       channel.unbind("app-state-changed", handleStateChange);
-      pusher.unsubscribe(`presence-room-${roomId}`);
     };
-  }, [pusher, roomId]);
+  }, [channel]);
   const changeState = async (newState: AppState) => {
     // Optimistic update for host
     if (isHost || !roomId) {
