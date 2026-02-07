@@ -1,10 +1,8 @@
 "use client";
-
 import { useState, useEffect } from "react";
 import { usePusher } from "@/providers/PusherProvider";
 import { motion, AnimatePresence } from "framer-motion";
 import { Sparkles, Dice5, HelpCircle, Heart, ArrowRight } from "lucide-react";
-
 const TRUTH_QUESTIONS = [
     "What was your first impression of me?",
     "What is your favorite memory of us?",
@@ -15,7 +13,6 @@ const TRUTH_QUESTIONS = [
     "If we could go anywhere right now, where would it be?",
     "What about me makes you smile the most?",
 ];
-
 const DARES = [
     "Give me a 10-second massage.",
     "Sing a romantic song to me.",
@@ -26,59 +23,44 @@ const DARES = [
     "Dance with me (no music) for 30 seconds.",
     "Post a photo of us on your story right now.",
 ];
-
-interface TruthOrDareProps {
-    roomId: string;
-    onExit: () => void;
-}
-
 export default function TruthOrDare({ roomId, onExit }: TruthOrDareProps) {
-    const { pusher, role } = usePusher();
+    const { channel, role } = usePusher();
     const [currentCard, setCurrentCard] = useState<string | null>(null);
     const [type, setType] = useState<"TRUTH" | "DARE" | null>(null);
     const [isMyTurn, setIsMyTurn] = useState(false);
     const [partnerAction, setPartnerAction] = useState<string | null>(null);
-
     useEffect(() => {
-        if (!pusher || !role || !roomId) return;
-
+        if (!channel || !role) return;
         // X starts
         setIsMyTurn(role === "X");
-
-        const channel = pusher.subscribe(`presence-room-${roomId}`);
-
-        channel.bind("tod-update", (data: { type: "TRUTH" | "DARE", card: string, nextTurn: string }) => {
-            console.log("[TruthOrDare] Update received:", data);
+        const handleUpdate = (data: { type: "TRUTH" | "DARE", card: string, nextTurn: string }) => {
+            console.log("📡 [TruthOrDare] Update received:", data);
             setType(data.type);
             setCurrentCard(data.card);
             setPartnerAction(null);
-            // In Pusher, nextTurn can be the role "X" or "O"
             setIsMyTurn(data.nextTurn === role);
-        });
-
-        channel.bind("tod-waiting", (data: { message: string, waitingRole: string }) => {
-            console.log("[TruthOrDare] Waiting received:", data);
+        };
+        const handleWaiting = (data: { message: string, waitingRole: string }) => {
+            console.log("📡 [TruthOrDare] Waiting received:", data);
             if (data.waitingRole === role) {
                 setPartnerAction(data.message);
                 setCurrentCard(null);
                 setType(null);
             }
-        });
-
-        return () => {
-            pusher.unsubscribe(`presence-room-${roomId}`);
         };
-    }, [pusher, role, roomId]);
-
+        channel.bind("tod-update", handleUpdate);
+        channel.bind("tod-waiting", handleWaiting);
+        return () => {
+            channel.unbind("tod-update", handleUpdate);
+            channel.unbind("tod-waiting", handleWaiting);
+        };
+    }, [channel, role]);
     const pickCard = async (selectedType: "TRUTH" | "DARE") => {
         if (!isMyTurn) return;
-
         const pool = selectedType === "TRUTH" ? TRUTH_QUESTIONS : DARES;
         const card = pool[Math.floor(Math.random() * pool.length)];
-
         setType(selectedType);
         setCurrentCard(card);
-
         try {
             await fetch("/api/game", {
                 method: "POST",
@@ -97,12 +79,10 @@ export default function TruthOrDare({ roomId, onExit }: TruthOrDareProps) {
             console.error("Pick card failed:", e);
         }
     };
-
     const completeTurn = async () => {
         setCurrentCard(null);
         setType(null);
         setIsMyTurn(false);
-
         try {
             await fetch("/api/game", {
                 method: "POST",
@@ -117,7 +97,6 @@ export default function TruthOrDare({ roomId, onExit }: TruthOrDareProps) {
                     }
                 })
             });
-
             // Also notify the other player they can choose
             await fetch("/api/game", {
                 method: "POST",
@@ -135,7 +114,6 @@ export default function TruthOrDare({ roomId, onExit }: TruthOrDareProps) {
             console.error("Complete turn failed:", e);
         }
     };
-
     return (
         <div className="flex flex-col items-center justify-center p-2 w-full max-w-full md:max-w-lg mx-auto overflow-x-hidden min-h-[80vh]">
             <h2 className="text-2xl md:text-5xl font-black text-purple-700 mb-1 font-serif flex items-center gap-2 md:gap-3">
@@ -145,13 +123,11 @@ export default function TruthOrDare({ roomId, onExit }: TruthOrDareProps) {
             <p className="text-purple-400 font-bold text-[10px] md:text-xs uppercase tracking-widest mb-6 md:mb-10 flex items-center gap-1 md:gap-2">
                 <Heart className="w-3 h-3 fill-current" /> Reveal Secrets & Fun Tasks
             </p>
-
             <div className="mb-10 w-full flex justify-center">
                 <div className={`px-8 py-3 rounded-full font-black shadow-lg transition-all border-2 ${isMyTurn ? "bg-purple-600 text-white border-purple-400 animate-pulse scale-105" : "bg-white text-gray-300 border-gray-100"}`}>
                     {isMyTurn ? "YOUR TURN! ✨" : "WAITING FOR PARTNER... ⏳"}
                 </div>
             </div>
-
             <AnimatePresence mode="wait">
                 {!currentCard ? (
                     <motion.div
@@ -199,14 +175,12 @@ export default function TruthOrDare({ roomId, onExit }: TruthOrDareProps) {
                         className="bg-white p-10 md:p-16 rounded-[2.5rem] shadow-2xl w-full text-center border-4 md:border-8 border-purple-100 relative overflow-hidden"
                     >
                         <div className={`absolute top-0 left-0 w-full h-2 ${type === "TRUTH" ? "bg-blue-400" : "bg-red-400"}`} />
-
                         <h3 className={`text-xs md:text-sm font-black mb-6 tracking-widest uppercase ${type === "TRUTH" ? "text-blue-500" : "text-red-500"}`}>
                             THE {type}
                         </h3>
                         <p className="text-2xl md:text-4xl font-black text-gray-800 mb-14 leading-tight font-serif italic text-balance">
                             &quot;{currentCard}&quot;
                         </p>
-
                         {isMyTurn ? (
                             <button
                                 onClick={completeTurn}
@@ -227,7 +201,6 @@ export default function TruthOrDare({ roomId, onExit }: TruthOrDareProps) {
                     </motion.div>
                 )}
             </AnimatePresence>
-
             <button onClick={onExit} className="mt-12 text-purple-300 font-bold hover:text-purple-600 transition-colors underline-offset-4 hover:underline">
                 Back to Playroom
             </button>
