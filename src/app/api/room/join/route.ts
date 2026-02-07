@@ -8,7 +8,7 @@ export async function POST(req: Request) {
 
         // --- MOCK BEHAVIOR IF DATABASE IS MISSING ---
         if (!prisma) {
-            console.log("Mocking room join for:", roomId);
+            console.log("🛠️ Mocking room join (No DB):", roomId);
             // Simulate that the room is always available and we are first/second
             // We'll use a simple logic: if roomId is even, we are X, else O? 
             // Or just always room-ready for testing.
