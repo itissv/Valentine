@@ -4,6 +4,16 @@ import { NextResponse } from "next/server";
 export async function POST(req: Request) {
     try {
         const { roomId } = await req.json();
+        // --- MOCK BEHAVIOR IF DATABASE IS MISSING ---
+        if (!prisma) {
+            console.log("🛠️ [Mock Mode] Joining room:", roomId);
+            return NextResponse.json({
+                roomId,
+                role: "X", // Default to host for local testing
+                isHost: true,
+                memoryBoard: []
+            });
+        }
         // --- REAL DATABASE LOGIC ---
         // We use a transaction to avoid race conditions during role assignment
         const result = await prisma.$transaction(async (tx) => {
