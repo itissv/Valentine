@@ -7,35 +7,36 @@ export async function POST(req: Request) {
         // --- MOCK BEHAVIOR IF DATABASE IS MISSING ---
         if (!prisma) {
             console.log("🛠️ [Mock Mode] Joining room:", roomId);
-            // Even-length ID = Host, Odd-length ID = Partner?
-            // Simple heuristic for testing: if room code ends in a digit, be Partner.
-            const isDigit = /\d$/.test(roomId);
+            // In Mock Mode, we'll return a 'pending' role and let the client-side 
+            // Presence Presence count decide the role to be 100% accurate.
             return NextResponse.json({
                 roomId,
-                role: isDigit ? "O" : "X",
-                isHost: !isDigit,
-                memoryBoard: isDigit ? [] : null
+                role: null,
+                isHost: false,
+                memoryBoard: []
             });
         }
         // --- REAL DATABASE LOGIC ---
-        // We use a transaction to avoid race conditions during role assignment
+        // Using a transaction to ensure atomic count and role assignment
         const result = await prisma.$transaction(async (tx) => {
+            // Check if room exists
             let room = await tx.couple.findUnique({
                 where: { id: roomId },
-                include: { users: true }
+                include: { _count: { select: { users: true } } }
             });
             if (!room) {
                 room = await tx.couple.create({
                     data: { id: roomId },
-                    include: { users: true }
+                    include: { _count: { select: { users: true } } }
                 });
             }
-            const currentUsers = room.users.length;
-            if (currentUsers >= 2) {
+            const currentCount = room._count.users;
+            if (currentCount >= 2) {
                 return { error: "Room is full", status: 400 };
             }
-            const role = currentUsers === 0 ? "X" : "O";
-            const isHost = currentUsers === 0;
+            // Assign role based on current count
+            const role = currentCount === 0 ? "X" : "O";
+            const isHost = currentCount === 0;
             await tx.user.create({
                 data: { coupleId: roomId }
             });
