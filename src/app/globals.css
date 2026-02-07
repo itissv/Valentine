@@ -1,0 +1,19 @@
+@import "tailwindcss";
+
+:root {
+  --background: #fdf2f8; /* Pink-50 */
+  --foreground: #831843; /* Pink-900 */
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-dancing), ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+}

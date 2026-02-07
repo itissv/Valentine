@@ -1,0 +1,43 @@
+generator client {
+  provider = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id        String   @id @default(uuid())
+  name      String?
+  coupleId  String?
+  couple    Couple?  @relation(fields: [coupleId], references: [id])
+  createdAt DateTime @default(now())
+}
+
+model Couple {
+  id        String   @id @default(uuid()) // This will be the Room Code
+  users     User[]
+  games     Game[]
+  messages  Message[]
+  createdAt DateTime @default(now())
+}
+
+model Game {
+  id        String   @id @default(uuid())
+  type      String   // "TIC_TAC_TOE", "QUIZ", "TRUTH_DARE", "MEMORY", "DRAW"
+  state     String   // JSON string of game state
+  coupleId  String
+  couple    Couple   @relation(fields: [coupleId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Message {
+  id        String   @id @default(uuid())
+  content   String
+  senderId  String
+  coupleId  String
+  couple    Couple   @relation(fields: [coupleId], references: [id])
+  createdAt DateTime @default(now())
+}
