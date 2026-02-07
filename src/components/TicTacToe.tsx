@@ -1,58 +1,45 @@
 "use client";
-
 import { useState, useEffect } from "react";
 import { usePusher } from "@/providers/PusherProvider";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Circle, RotateCcw, Trophy, Heart } from "lucide-react";
-
 interface TicTacToeProps {
     roomId: string;
     onExit: () => void;
 }
-
 export default function TicTacToe({ roomId, onExit }: TicTacToeProps) {
-    const { pusher, role } = usePusher();
+    const { pusher, role, channel } = usePusher();
     const [board, setBoard] = useState<(string | null)[]>(Array(9).fill(null));
     const [isMyTurn, setIsMyTurn] = useState(false);
     const [winner, setWinner] = useState<string | null>(null);
-
     useEffect(() => {
-        if (!pusher || !role || !roomId) return;
-
+        if (!channel || !role) return;
         // X goes first
         setIsMyTurn(role === "X");
-
-        const channel = pusher.subscribe(`presence-room-${roomId}`);
-
-        channel.bind("move-made", (data: { index: number, symbol: string }) => {
-            console.log("[TicTacToe] Move received:", data);
+        const handleMove = (data: { index: number, symbol: string }) => {
+            console.log("📡 [TicTacToe] Move received:", data);
             setBoard((prev) => {
                 const newBoard = [...prev];
                 newBoard[data.index] = data.symbol;
-
-                // Immediately check for a winner on the partner's behalf
                 const gameWinner = checkWinner(newBoard);
-                if (gameWinner) {
-                    setWinner(gameWinner);
-                }
-
+                if (gameWinner) setWinner(gameWinner);
                 return newBoard;
             });
             setIsMyTurn(true);
-        });
-
-        channel.bind("game-reset", () => {
-            console.log("[TicTacToe] Game reset received");
+        };
+        const handleReset = () => {
+            console.log("📡 [TicTacToe] Game reset");
             setBoard(Array(9).fill(null));
             setWinner(null);
             setIsMyTurn(role === "X");
-        });
-
-        return () => {
-            pusher.unsubscribe(`presence-room-${roomId}`);
         };
-    }, [pusher, role, roomId]);
-
+        channel.bind("move-made", handleMove);
+        channel.bind("game-reset", handleReset);
+        return () => {
+            channel.unbind("move-made", handleMove);
+            channel.unbind("game-reset", handleReset);
+        };
+    }, [channel, role]);
     const checkWinner = (squares: (string | null)[]) => {
         const lines = [
             [0, 1, 2], [3, 4, 5], [6, 7, 8],
@@ -68,15 +55,12 @@ export default function TicTacToe({ roomId, onExit }: TicTacToeProps) {
         if (squares.every(s => s !== null)) return "DRAW";
         return null;
     };
-
     const handleClick = async (index: number) => {
         if (board[index] || winner || !isMyTurn || !role) return;
-
         const newBoard = [...board];
         newBoard[index] = role;
         setBoard(newBoard);
         setIsMyTurn(false);
-
         // API call to trigger Pusher event for partner
         try {
             await fetch("/api/game", {
@@ -88,7 +72,6 @@ export default function TicTacToe({ roomId, onExit }: TicTacToeProps) {
                     data: { index, symbol: role }
                 })
             });
-
             const gameWinner = checkWinner(newBoard);
             if (gameWinner) {
                 setWinner(gameWinner);
@@ -110,7 +93,6 @@ export default function TicTacToe({ roomId, onExit }: TicTacToeProps) {
             console.error("Move failed:", e);
         }
     };
-
     const resetGame = async () => {
         try {
             await fetch("/api/game", {
@@ -126,14 +108,12 @@ export default function TicTacToe({ roomId, onExit }: TicTacToeProps) {
             console.error("Reset failed:", e);
         }
     };
-
     return (
         <div className="flex flex-col items-center justify-center p-2 w-full max-w-full md:max-w-sm mx-auto overflow-hidden">
             <h2 className="text-2xl md:text-5xl font-black text-pink-600 mb-4 md:mb-6 flex items-center gap-2 md:gap-3">
                 <Heart className="w-6 h-6 md:w-12 md:h-12 fill-current" />
                 Tic-Tac-Love
             </h2>
-
             <div className="w-full flex justify-between items-center mb-8 px-4 py-3 bg-white rounded-2xl shadow-sm border border-pink-100">
                 <div className="flex flex-col items-center gap-1">
                     <span className="text-[10px] uppercase tracking-widest font-bold text-gray-400">You</span>
@@ -141,11 +121,9 @@ export default function TicTacToe({ roomId, onExit }: TicTacToeProps) {
                         {role === "X" ? <X className="w-5 h-5" /> : <Circle className="w-5 h-5" />}
                     </div>
                 </div>
-
                 <div className={`px-4 py-2 rounded-full font-black text-sm uppercase tracking-tighter ${isMyTurn ? "bg-green-500 text-white animate-pulse" : "bg-gray-100 text-gray-400"}`}>
                     {winner ? "Done!" : isMyTurn ? "Your Turn" : "Partner's Turn"}
                 </div>
-
                 <div className="flex flex-col items-center gap-1">
                     <span className="text-[10px] uppercase tracking-widest font-bold text-gray-400">Partner</span>
                     <div className={`p-2 rounded-xl border-2 ${role === "O" ? "border-pink-500 bg-pink-50 text-pink-500" : "border-blue-400 bg-blue-50 text-blue-400"}`}>
@@ -153,10 +131,8 @@ export default function TicTacToe({ roomId, onExit }: TicTacToeProps) {
                     </div>
                 </div>
             </div>
-
             <div className="grid grid-cols-3 gap-2 md:gap-4 w-full aspect-square bg-pink-100 p-2 md:p-4 rounded-3xl shadow-2xl relative overflow-hidden">
                 <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#ec4899_1px,transparent_1px)] [background-size:16px_16px]" />
-
                 {board.map((cell, i) => (
                     <motion.button
                         key={i}
@@ -184,7 +160,6 @@ export default function TicTacToe({ roomId, onExit }: TicTacToeProps) {
                     </motion.button>
                 ))}
             </div>
-
             <AnimatePresence>
                 {winner && (
                     <motion.div
@@ -207,7 +182,6 @@ export default function TicTacToe({ roomId, onExit }: TicTacToeProps) {
                     </motion.div>
                 )}
             </AnimatePresence>
-
             <button onClick={onExit} className="mt-12 text-pink-300 font-bold hover:text-pink-500 transition-colors underline-offset-4 hover:underline">
                 Back to Playroom
             </button>
