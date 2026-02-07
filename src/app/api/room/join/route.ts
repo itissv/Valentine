@@ -7,11 +7,14 @@ export async function POST(req: Request) {
         // --- MOCK BEHAVIOR IF DATABASE IS MISSING ---
         if (!prisma) {
             console.log("🛠️ [Mock Mode] Joining room:", roomId);
+            // Even-length ID = Host, Odd-length ID = Partner?
+            // Simple heuristic for testing: if room code ends in a digit, be Partner.
+            const isDigit = /\d$/.test(roomId);
             return NextResponse.json({
                 roomId,
-                role: "X", // Default to host for local testing
-                isHost: true,
-                memoryBoard: []
+                role: isDigit ? "O" : "X",
+                isHost: !isDigit,
+                memoryBoard: isDigit ? [] : null
             });
         }
         // --- REAL DATABASE LOGIC ---
