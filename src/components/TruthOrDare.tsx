@@ -23,6 +23,10 @@ const DARES = [
     "Dance with me (no music) for 30 seconds.",
     "Post a photo of us on your story right now.",
 ];
+interface TruthOrDareProps {
+    roomId: string;
+    onExit: () => void;
+}
 export default function TruthOrDare({ roomId, onExit }: TruthOrDareProps) {
     const { channel, role } = usePusher();
     const [currentCard, setCurrentCard] = useState<string | null>(null);
