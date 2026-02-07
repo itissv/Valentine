@@ -76,7 +76,9 @@ export const PusherProvider = ({ children }: { children: ReactNode }) => {
         });
         return () => {
             console.log("📡 [Pusher] Unsubscribing from:", roomId);
-            pusherClient.unsubscribe(`presence-room-${roomId}`);
+            if (pusherClient) {
+                pusherClient.unsubscribe(`presence-room-${roomId}`);
+            }
             setChannel(null);
         };
     }, [roomId]);
@@ -104,4 +106,3 @@ export const PusherProvider = ({ children }: { children: ReactNode }) => {
         </PusherContext.Provider>
     );
 };
-
